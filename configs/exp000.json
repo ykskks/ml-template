@@ -1,0 +1,15 @@
+{
+    "model": "model_template",
+    "config": {
+        "features": [
+            "F1",
+            "F2",
+            "F3"
+        ],
+        "cv": "Stratified",
+        "params": {
+            "num_leaves": 100,
+            "min_data_in_leaf": 100
+        }
+    }
+}
