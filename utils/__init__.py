@@ -1,12 +1,16 @@
 import time
 from contextlib import contextmanager
 import logging
+import random
+import math
 
 import pandas as pd
 import numpy as np
 from sklearn.metrics import mean_absolute_error
 import feather
 from lightgbm.callback import _format_eval_result
+import torch
+import matplotlib.pyplot as plt
 
 
 @contextmanager
@@ -17,30 +21,51 @@ def timer(name):
     print(f'{name}: finished in {end_time - start_time} s')
 
 
-def load_datasets(feats, debug=False):
+def track_experiment(model_id, field, value, csv_file='logs/tracking.csv',
+                     integer=False, digits=None):
+    try:
+        df = pd.read_csv(csv_file, index_col=[0])
+    except FileNotFoundError:
+        df = pd.DataFrame()
+
+    if integer:
+        value = round(value)
+    elif digits is not None:
+        value = round(value, digits)
+    df.loc[model_id, field] = value # Model number is index
+    df.to_csv(csv_file)
+
+
+def seed_everything(seed=42):
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+
+
+def load_datasets(feats, debug=False, n=1000):
     if debug:
-        train_feats = [feather.read_dataframe(f'features/{feat}_train.feather').head(10000) for feat in feats]
-        train = pd.concat(train_feats, axis=1)
-        test_feats = [feather.read_dataframe(f'features/{feat}_test.feather').head(10000) for feat in feats]
-        test = pd.concat(test_feats, axis=1)
-        return train, test
+        train_feats = [feather.read_dataframe(f'features/{feat}_train.feather').head(n) for feat in feats]
+        test_feats = [feather.read_dataframe(f'features/{feat}_test.feather').head(n) for feat in feats]
     else:
         train_feats = [feather.read_dataframe(f'features/{feat}_train.feather') for feat in feats]
-        train = pd.concat(train_feats, axis=1)
         test_feats = [feather.read_dataframe(f'features/{feat}_test.feather') for feat in feats]
-        test = pd.concat(test_feats, axis=1)
-        return train, test
+
+    train = pd.concat(train_feats, axis=1)
+    test = pd.concat(test_feats, axis=1)
+    return train, test
 
 
-def load_target(target_name, debug=False):
+def load_target(target_name, debug=False, n=1000):
     if debug:
-        train = feather.read_dataframe('data/input/train.feather').head(10000)
-        target = train[target_name]
-        return target
+        train = feather.read_dataframe('data/input/train.feather').head(n)
     else:
         train = feather.read_dataframe('data/input/train.feather')
-        target = train[target_name]
-        return target
+
+    target = train[target_name]
+    return target
 
 
 def get_categorical_feats(feats):
@@ -109,3 +134,27 @@ def reduce_mem_usage(df):
     print('Decreased by {:.1f}%'.format(100 * (start_mem - end_mem) / start_mem))
 
     return df
+
+
+def plot_distributions_all_vars(df, plot_cols=None, exclude_cols=None, fig_n_cols=5, **kwargs):
+    # drop nan col
+    df.dropna(inplace=True, axis=1)
+
+    # cols指定がなければ、numerical colを取得
+    if plot_cols is None:
+        numeric_types = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
+        plot_cols = df.select_dtypes(include=numeric_types).columns.tolist()
+        if exclude_cols is not None:
+            plot_cols = [col for col in plot_cols if col not in exclude_cols]
+
+    # figを定義, axesが1-D arrayになるとindexエラーが出るので二次元に統一
+    fig, axes = plt.subplots(math.ceil(len(plot_cols)/fig_n_cols), fig_n_cols, figsize=(16, 8))
+    axes = axes.reshape(-1, fig_n_cols)
+
+    # 描画
+    for i, col in enumerate(plot_cols):
+        ax = axes[i//fig_n_cols][i%fig_n_cols]
+        ax.hist(df[col], **kwargs)
+        ax.set_title(col)
+    fig.tight_layout()
+    plt.show()
