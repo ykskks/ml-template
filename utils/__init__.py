@@ -4,6 +4,7 @@ import logging
 import random
 import math
 
+from scipy import stats
 import pandas as pd
 import numpy as np
 from sklearn.metrics import mean_absolute_error
@@ -154,7 +155,13 @@ def plot_distributions_all_vars(df, plot_cols=None, exclude_cols=None, fig_n_col
     # 描画
     for i, col in enumerate(plot_cols):
         ax = axes[i//fig_n_cols][i%fig_n_cols]
-        ax.hist(df[col], **kwargs)
+        ax.hist(df[col], density=True, alpha=0.5, **kwargs)
+
+        if df[col].nunique() > 1:
+            kde = stats.gaussian_kde(df[col])
+            xx = np.linspace(df[col].min(), df[col].max(), 1000)
+            ax.plot(xx, kde(xx), alpha=0.7, **kwargs)
+
         ax.set_title(col)
     fig.tight_layout()
     plt.show()
