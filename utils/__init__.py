@@ -137,9 +137,18 @@ def reduce_mem_usage(df):
     return df
 
 
-def plot_distributions_all_vars(df, plot_cols=None, exclude_cols=None, fig_n_cols=5, **kwargs):
+def plot_distributions(dfs, plot_cols=None, exclude_cols=None, fig_n_cols=5, **kwargs):
+    if not isinstance(dfs, list):
+        raise Exception("Input must be a list of pd.DataFrames")
+
+    if len(dfs) > 3:
+        raise Exception("Cannot handle more than 3 dfs, the plot will be too messy.")
+
     # drop nan col
-    df.dropna(inplace=True, axis=1)
+    total_dfs = pd.concat(dfs, axis=0)
+    drop_cols = total_dfs.columns.values[pd.isnull(total_dfs).sum(axis=0) > 0]
+    for df in dfs:
+        df.drop(drop_cols, inplace=True, axis=1)
 
     # cols指定がなければ、numerical colを取得
     if plot_cols is None:
@@ -149,19 +158,19 @@ def plot_distributions_all_vars(df, plot_cols=None, exclude_cols=None, fig_n_col
             plot_cols = [col for col in plot_cols if col not in exclude_cols]
 
     # figを定義, axesが1-D arrayになるとindexエラーが出るので二次元に統一
-    fig, axes = plt.subplots(math.ceil(len(plot_cols)/fig_n_cols), fig_n_cols, figsize=(16, 8))
+    fig, axes = plt.subplots(math.ceil(len(plot_cols)/fig_n_cols), fig_n_cols, figsize=(16, int(0.5 * len(plot_cols))))
     axes = axes.reshape(-1, fig_n_cols)
 
     # 描画
+    colors = ["darkred", "darkblue", "darkgreen"]
     for i, col in enumerate(plot_cols):
         ax = axes[i//fig_n_cols][i%fig_n_cols]
-        ax.hist(df[col], density=True, alpha=0.5, **kwargs)
-
-        if df[col].nunique() > 1:
-            kde = stats.gaussian_kde(df[col])
-            xx = np.linspace(df[col].min(), df[col].max(), 1000)
-            ax.plot(xx, kde(xx), alpha=0.7, **kwargs)
-
+        for j, df in enumerate(dfs):
+            ax.hist(df[col], density=True, color=colors[j], alpha=0.5, **kwargs)
+            if df[col].nunique() > 1:
+                kde = stats.gaussian_kde(df[col])
+                xx = np.linspace(df[col].min(), df[col].max(), 1000)
+                ax.plot(xx, kde(xx), color=colors[j], alpha=0.7)
         ax.set_title(col)
     fig.tight_layout()
     plt.show()
