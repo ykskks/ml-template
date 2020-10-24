@@ -13,6 +13,7 @@ import feather
 from lightgbm.callback import _format_eval_result
 import torch
 import matplotlib.pyplot as plt
+from matplotlib_venn import venn2
 
 
 @contextmanager
@@ -204,3 +205,22 @@ def top2accuracy(preds, trues):
             cnt += 1
     score = cnt / pred_labels.shape[0]
     return score
+
+
+def plot_venn2(train, test, include_cols=None, exclude_cols=None):
+    train = train.copy(deep=True)
+    test = test.copy(deep=True)
+    if exclude_cols is not None:
+        train.drop(exclude_cols, axis=1, inplace=True)
+        test.drop(exclude_cols, axis=1, inplace=True)
+    if include_cols is not None:
+        train = train[include_cols]
+        test = test[include_cols]
+
+    n_vars = len(train.columns.values)
+    fig, axes = plt.subplots(nrows=n_vars//5 + 1, ncols=5, figsize=(16, 6))
+    i = 0
+    for col in train.columns.values:
+        venn2([set(train[col].unique()), set(test[col].unique())], set_labels=["train", "test"], ax=axes[i//5][i%5])
+        axes[i//5][i%5].set_title(col)
+        i += 1
