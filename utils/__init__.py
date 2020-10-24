@@ -1,3 +1,4 @@
+import os
 import time
 from contextlib import contextmanager
 import logging
@@ -22,6 +23,18 @@ def timer(name):
     print(f'{name}: finished in {end_time - start_time} s')
 
 
+def get_logger(config_name):
+    # prepare the log file
+    logger = logging.getLogger("main")
+    logger.setLevel(logging.DEBUG)
+    sc = logging.StreamHandler()
+    logger.addHandler(sc)
+    fh = logging.FileHandler(f"logs/{config_name}.log", 'w+')
+    logger.addHandler(fh)
+    logger.debug(f"logs/{config_name}.log")
+    return logger
+
+
 def track_experiment(model_id, field, value, csv_file='logs/tracking.csv',
                      integer=False, digits=None):
     try:
@@ -33,7 +46,7 @@ def track_experiment(model_id, field, value, csv_file='logs/tracking.csv',
         value = round(value)
     elif digits is not None:
         value = round(value, digits)
-    df.loc[model_id, field] = value # Model number is index
+    df.loc[model_id, field] = value  # Model number is index
     df.to_csv(csv_file)
 
 
@@ -174,3 +187,20 @@ def plot_distributions(dfs, plot_cols=None, exclude_cols=None, fig_n_cols=5, **k
         ax.set_title(col)
     fig.tight_layout()
     plt.show()
+
+
+def eval_func(preds, data):
+    trues = data.get_label()
+    preds_reorderd = np.transpose(preds.reshape(31, -1))
+    score = top2accuracy(preds_reorderd, trues)
+    return "top2accuracy", score, True
+
+
+def top2accuracy(preds, trues):
+    pred_labels = np.argsort(preds, axis=1)[:, -2:]
+    cnt = 0
+    for i in range(pred_labels.shape[0]):
+        if trues[i] in pred_labels[i, :]:
+            cnt += 1
+    score = cnt / pred_labels.shape[0]
+    return score

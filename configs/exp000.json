@@ -1,15 +1,26 @@
 {
-    "model": "model_template",
+    "model": "lgbm",
     "config": {
         "features": [
-            "F1",
-            "F2",
-            "F3"
+            "Raw"
         ],
-        "cv": "Stratified",
+        "cv": "mcs",
         "params": {
-            "num_leaves": 100,
-            "min_data_in_leaf": 100
+            "objective": "multiclass",
+            "metric": "multi_logloss",
+            "num_class": 31,
+            "learning_rate": 0.01,
+            "num_leaves": 50,
+            "min_data_in_leaf": 100,
+            "max_depth": 7,
+            "subsample_freq": 1,
+            "subsample": 0.7,
+            "reg_alpha": 0.0001,
+            "reg_lambda": 0.0001,
+            "colsample_bytree": 1,
+            "early_stopping_rounds": 100,
+            "n_estimators": 10000,
+            "seed": 42
         }
     }
 }
