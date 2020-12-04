@@ -93,15 +93,6 @@ def get_categorical_feats(feats):
     return categorical_feats
 
 
-def calculate_metric(predicted_values, true_values, coupling_types, floor=1e-9):
-    """Inputs should be in numpy.array format"""
-    metric = 0
-    for coupling_type in np.unique(coupling_types):
-        group_mae = mean_absolute_error(true_values[coupling_types == coupling_type], predicted_values[coupling_types == coupling_type])
-        metric += np.log(max(group_mae, floor))
-    return metric / len(np.unique(coupling_types))
-
-
 def log_evaluation(logger, period=1, show_stdv=True, level=logging.DEBUG):
     def _callback(env):
         if period > 0 and env.evaluation_result_list and (env.iteration + 1) % period == 0:
@@ -191,10 +182,11 @@ def plot_distributions(dfs, plot_cols=None, exclude_cols=None, fig_n_cols=5, **k
 
 
 def eval_func(preds, data):
-    trues = data.get_label()
-    preds_reorderd = np.transpose(preds.reshape(31, -1))
-    score = top2accuracy(preds_reorderd, trues)
-    return "top2accuracy", score, True
+    # trues = data.get_label()
+    # preds_reorderd = np.transpose(preds.reshape(31, -1))
+    # score = top2accuracy(preds_reorderd, trues)
+    # return "top2accuracy", score, True
+    raise RuntimeError("Please define eval func.")
 
 
 def top2accuracy(preds, trues):
@@ -223,4 +215,9 @@ def plot_venn2(train, test, include_cols=None, exclude_cols=None):
     for col in train.columns.values:
         venn2([set(train[col].unique()), set(test[col].unique())], set_labels=["train", "test"], ax=axes[i//5][i%5])
         axes[i//5][i%5].set_title(col)
+
+        only_test_element = set(test[col].dropna().unique()) - set(train[col].dropna().unique())
+        only_test_element_ratio = test[col].isin(only_test_element).sum() / len(test)
+        axes[i//5][i%5].text(1, 1, round(only_test_element_ratio, 3))
+
         i += 1
