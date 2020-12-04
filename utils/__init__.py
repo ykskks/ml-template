@@ -4,6 +4,7 @@ from contextlib import contextmanager
 import logging
 import random
 import math
+from pathlib import Path
 
 from scipy import stats
 import pandas as pd
@@ -14,6 +15,8 @@ from lightgbm.callback import _format_eval_result
 import torch
 import matplotlib.pyplot as plt
 from matplotlib_venn import venn2
+import sweetviz as sv
+from pandas_profiling import ProfileReport
 
 
 @contextmanager
@@ -221,3 +224,31 @@ def plot_venn2(train, test, include_cols=None, exclude_cols=None):
         axes[i//5][i%5].text(1, 1, round(only_test_element_ratio, 3))
 
         i += 1
+
+
+def generate_eda(df_path="../data/raw/", save_path="../data/", mode="all"):
+    if mode not in ["sv", "pdp", "all"]:
+        raise ValueError("Valid arguments are `sv`, `pdp`, `all`")
+
+    train = pd.read_csv(Path(df_path) / "train.csv")
+    test = pd.read_csv(Path(df_path) / "test.csv")
+
+    def generate_sv(train, test):
+        my_report = sv.compare([train, "train"], [test, "test"])
+        my_report.show_html(Path(save_path) / "sv.html")
+
+    def generate_pdb(train, test):
+        train_profile = ProfileReport(train, title="train")
+        test_profile = ProfileReport(test, title="test")
+        train_profile.to_file(Path(save_path) / "pdb_train.html")
+        test_profile.to_file(Path(save_path) / "pdb_test.html")
+
+    if mode == "sv":
+        generate_sv(train, test)
+
+    elif mode == "pdb":
+        generate_pdb(train, test)
+
+    else:
+        generate_sv(train, test)
+        generate_pdb(train, test)
